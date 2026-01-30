@@ -76,7 +76,20 @@ function ExecutionVisualizer({ readyQueue }) {
     const executed = currentTime - cpuState.start;
 
     if (executed >= current.burst) {
-      setCompleted((prev) => [...prev, current]);
+      // setCompleted((prev) => [...prev, current]);
+      const CT = currentTime;
+      const TAT = CT - current.arrival;
+      const WT = TAT - current.burst;
+
+      setCompleted((prev) => [
+        ...prev,
+        {
+          ...current,
+          CT,
+          TAT,
+          WT,
+        },
+      ]);
       setCurrent(null);
 
       if (queue.length === 0 || queue[0].arrival > currentTime) {
@@ -88,12 +101,9 @@ function ExecutionVisualizer({ readyQueue }) {
     }
   }, [currentTime, current, queue, cpuState.start]);
 
-
   // global timer
   useEffect(() => {
     if (!isRunning) return;
-
-    // 🛑 stop clock when CPU is done
     if (queue.length === 0 && current === null) return;
 
     const timer = setInterval(() => {
@@ -104,85 +114,48 @@ function ExecutionVisualizer({ readyQueue }) {
   }, [isRunning, queue.length, current]);
 
   //gantt chart
-  // useEffect(() => {
-  //   if (!isRunning) return;
+  useEffect(() => {
+    if (!isRunning) return;
 
-  //   setGantt((prev) => {
-  //     const last = prev[prev.length - 1];
+    // 🛑 STOP adding blocks after everything is done
+    if (queue.length === 0 && current === null) return;
 
-  //     // first block
-  //     if (!last) {
-  //       return [
-  //         {
-  //           pid: cpuState.pid,
-  //           start: cpuState.start,
-  //           end: currentTime,
-  //         },
-  //       ];
-  //     }
+    setGantt((prev) => {
+      const last = prev[prev.length - 1];
 
-  //     // same CPU state → extend
-  //     if (last.pid === cpuState.pid) {
-  //       if (last.end === currentTime) return prev; // 
-  //       return prev.map((g, i) =>
-  //         i === prev.length - 1 ? { ...g, end: currentTime } : g,
-  //       );
-  //     }
+      // first block
+      if (!last) {
+        return [
+          {
+            pid: cpuState.pid,
+            start: cpuState.start,
+            end: currentTime,
+          },
+        ];
+      }
 
-  //     // CPU changed → new block
-  //     return [
-  //       ...prev,
-  //       {
-  //         pid: cpuState.pid,
-  //         start: cpuState.start,
-  //         end: currentTime,
-  //       },
-  //     ];
-  //   });
-  // }, [cpuState, currentTime, isRunning]);
-//gantt chart
-useEffect(() => {
-  if (!isRunning) return;
+      // same CPU state → extend
+      if (last.pid === cpuState.pid) {
+        if (last.end === currentTime) return prev;
+        return prev.map((g, i) =>
+          i === prev.length - 1 ? { ...g, end: currentTime } : g,
+        );
+      }
 
-  // 🛑 STOP adding blocks after everything is done
-  if (queue.length === 0 && current === null) return;
-
-  setGantt((prev) => {
-    const last = prev[prev.length - 1];
-
-    // first block
-    if (!last) {
+      // CPU changed → new block
       return [
+        ...prev,
         {
           pid: cpuState.pid,
           start: cpuState.start,
           end: currentTime,
         },
       ];
-    }
-
-    // same CPU state → extend
-    if (last.pid === cpuState.pid) {
-      if (last.end === currentTime) return prev;
-      return prev.map((g, i) =>
-        i === prev.length - 1 ? { ...g, end: currentTime } : g,
-      );
-    }
-
-    // CPU changed → new block
-    return [
-      ...prev,
-      {
-        pid: cpuState.pid,
-        start: cpuState.start,
-        end: currentTime,
-      },
-    ];
-  });
-}, [cpuState, currentTime, isRunning, queue.length, current]);
-
-
-
+    });
+  }, [cpuState, currentTime, isRunning, queue.length, current]);
+  useEffect(() => {
+    console.log(completed);
+  }, [completed]);
   return (
     <div className="mt-1 w-full ">
       <div className="flex items-center justify-between mb-3 px-1">
@@ -274,6 +247,8 @@ useEffect(() => {
       </div>
       {/* Gantt chart */}
       <GanttChart gantt={gantt} />
+      {/* Output table  */}
+      <OutputTable data={completed} />
     </div>
   );
 }
@@ -369,3 +344,71 @@ function ProcessBox({ label, done = false }) {
     </motion.div>
   );
 }
+
+const OutputTable = ({ data }) => {
+  const pidColors = [
+    "bg-cyan-400",
+    "bg-purple-400",
+    "bg-green-400",
+    "bg-yellow-400",
+    "bg-pink-400",
+    "bg-orange-400",
+  ];
+
+  const getColorByPid = (pid) => {
+    const index = pid
+      .toString()
+      .split("")
+      .reduce((a, c) => a + c.charCodeAt(0), 0);
+
+    return pidColors[index % pidColors.length];
+  };
+  return (
+    <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black/30">
+      <table className="w-full text-sm text-slate-200">
+        <thead className="bg-white/3 text-slate-400">
+          <tr>
+            <th className="px-4 py-3 text-left">Process</th>
+            <th className="px-4 py-3">AT</th>
+            <th className="px-4 py-3">BT</th>
+            <th className="px-4 py-3">CT</th>
+            <th className="px-4 py-3">TAT</th>
+            <th className="px-4 py-3">WT</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {data.map((p, i) => (
+            <tr
+              key={i}
+              className="border-t text-white border-white/5 hover:bg-white/5 transition"
+            >
+              {/* PID with color dot */}
+              <td className="px-4 py-3 flex items-center gap-3">
+                <span
+                  className={`h-3 w-3 rounded-full ${getColorByPid(p.pid)}`}
+                />
+                <span className="font-semibold">{p.pid}</span>
+              </td>
+
+              <td className="px-4 py-3 text-center">{p.arrival}</td>
+              <td className="px-4 py-3 text-center">{p.burst}</td>
+              <td className="px-4 py-3 text-center">{p.CT}</td>
+              <td className="px-4 py-3 text-center text-purple-300">{p.TAT}</td>
+              <td className="px-4 py-3 text-center text-yellow-300">{p.WT}</td>
+            </tr>
+          ))}
+
+          {/* Empty state */}
+          {data.length === 0 && (
+            <tr>
+              <td colSpan="6" className="px-4 py-6 text-center text-slate-500">
+                No process completed yet
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+};

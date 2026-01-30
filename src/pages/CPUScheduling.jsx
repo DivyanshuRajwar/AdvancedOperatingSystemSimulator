@@ -94,7 +94,7 @@ function CPUScheduling() {
   };
 
   const [simulationRun, setSimulationRun] = useState(false);
-  
+
   const [readyQueue, setReadyQueue] = useState([]);
   useEffect(() => {
   if (!simulationRun) return;
@@ -115,7 +115,6 @@ function CPUScheduling() {
     });
 
   setReadyQueue(sorted);
-  console.log(sorted);
 }, [simulationRun, processes]);
 
   return (
