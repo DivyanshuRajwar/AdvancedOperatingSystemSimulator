@@ -1,26 +1,50 @@
-import React from 'react'
+import React, { useEffect } from "react";
+import "./execution.css";
 
 function GanttChart({ gantt }) {
+  if (!gantt || gantt.length === 0) {
+    return (
+      <div className="mt-2 glass-panel p-6 text-muted-foreground">
+        Run the algorithm to see Gantt chart
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-6 pl-2">
-      <h3 className="text-cyan-300 font-semibold mb-2">Gantt Chart</h3>
+    <div className="glass-panel p-4 mt-2 pb-6">
+      <h3 className="text-lg font-semibold mb-6 text-foreground">
+        Gantt Chart
+      </h3>
 
-      <div className="flex h-11 items-center   border-cyan-500/40  rounded-lg">
+      <div className="gantt-track">
         {gantt.map((g, i) => (
-          <div key={i} className="relative flex flex-col items-center">
-            {/* block */}
-            <div className="px-4 py-2 border border-cyan-400 text-cyan-300">
-              {g.pid}
-            </div>
+          <div key={i} className="gantt-item group">
+            {/* Process block */}
+            <div className="gantt-block">{g.pid}</div>
 
-            {/* time labels */}
-            <div className="absolute -bottom-5 left-0 text-xs text-gray-400">
-              {g.start}
-            </div>
+            {/* Time labels */}
+            <span className="gantt-time start">{g.start}</span>
 
             {i === gantt.length - 1 && (
-              <div className="absolute -bottom-5 right-0 text-xs text-gray-400">
-                {g.end}
+              <span className="gantt-time end">{g.end}</span>
+            )}
+
+            {/* Hover detail box */}
+            {g.pid !== "IDLE" && (
+              <div className="gantt-tooltip-wrapper">
+                <div className="gantt-bubble">
+                  <p>
+                    <strong>AT:</strong> {g.arrival}
+                  </p>
+                  <p>
+                    <strong>BT:</strong> {g.burst}
+                  </p>
+                </div>
+                <div className="gantt-pointer"></div>
+
+                {/* blurred shadow layer */}
+                <div className="gantt-bubble blurred"></div>
+                <div className="gantt-pointer blurred"></div>
               </div>
             )}
           </div>
@@ -30,5 +54,4 @@ function GanttChart({ gantt }) {
   );
 }
 
-
-export default GanttChart
+export default GanttChart;

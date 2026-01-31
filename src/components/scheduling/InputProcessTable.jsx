@@ -5,7 +5,7 @@ function InputProcessTable({ processes, onDelete, setSimulationRun }) {
   if (!processes || processes.length === 0) return null;
 
   return (
-    <div className="mt-8 max-w-sm">
+    <div className=" mt-4 max-w-sm">
       <div className="flex items-center justify-between mb-3">
         {/* Heading */}
         <h3 className="text-white text-sm font-semibold">
@@ -31,7 +31,7 @@ function InputProcessTable({ processes, onDelete, setSimulationRun }) {
           Generate
         </button>
       </div>
-      <div className="border border-cyan-400/30 rounded-lg overflow-hidden">
+      <div className="border glass-panel border-cyan-400/30 rounded-lg overflow-hidden">
         <table className="w-full text-sm text-white">
           <thead className="bg-cyan-400/10">
             <tr>

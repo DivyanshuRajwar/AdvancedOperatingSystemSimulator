@@ -5,7 +5,6 @@ import ExecutionVisualizer from "../components/scheduling/ExecutionVisualizer";
 import { useRef } from "react";
 import "./Cpu.css";
 function CPUScheduling() {
-  
   const isValid = () =>
     arrivalInput !== "" &&
     burstInput !== "" &&
@@ -97,25 +96,25 @@ function CPUScheduling() {
 
   const [readyQueue, setReadyQueue] = useState([]);
   useEffect(() => {
-  if (!simulationRun) return;
+    if (!simulationRun) return;
 
-  const sorted = [...processes]
-    .map((p, index) => ({
-      ...p,
-      pid: `P${index + 1}`,
-      arrival: Number(p.arrival),
-      burst: Number(p.burst),
-      order: index, // tie-breaker
-    }))
-    .sort((a, b) => {
-      if (a.arrival !== b.arrival) {
-        return a.arrival - b.arrival; // FCFS
-      }
-      return a.order - b.order; // same arrival → PID order
-    });
+    const sorted = [...processes]
+      .map((p, index) => ({
+        ...p,
+        pid: `P${index + 1}`,
+        arrival: Number(p.arrival),
+        burst: Number(p.burst),
+        order: index, // tie-breaker
+      }))
+      .sort((a, b) => {
+        if (a.arrival !== b.arrival) {
+          return a.arrival - b.arrival; // FCFS
+        }
+        return a.order - b.order; // same arrival → PID order
+      });
 
-  setReadyQueue(sorted);
-}, [simulationRun, processes]);
+    setReadyQueue(sorted);
+  }, [simulationRun, processes]);
 
   return (
     <div className="min-h-screen p-6 lg:p-8 flex ">
@@ -184,7 +183,7 @@ function CPUScheduling() {
           </div>
 
           {/* Input Rows */}
-          <div className="grid grid-cols-[70px_100px_100px_40px] gap-3 items-center">
+          <div className=" grid grid-cols-[70px_100px_100px_40px] gap-3 items-center">
             {/* PID */}
             <div className="bg-cyan-100/20 rounded-lg px-3 py-2 text-cyan-100 text-sm font-medium text-center">
               P{currentIndex + 1}
@@ -244,9 +243,23 @@ function CPUScheduling() {
         )}
       </div>
       {/* right */}
-      <div>
-        {simulationRun && (
-          <ExecutionVisualizer readyQueue={readyQueue} />
+      <div className="h-full min-h-150 w-full ml-5 flex  items-center justify-center">
+        {simulationRun ? (
+          <ExecutionVisualizer readyQueue={readyQueue} totalProcesses={processes.length} />
+        ) : (
+          <div className=" h- full glass-panel p-12 flex flex-col items-center  justify-center text-center animate-fade-up">
+            <div className="cpu-icon mb-4">
+              <Cpu className="w-10 h-10 text-white" />
+            </div>
+
+            <h3 className="text-lg font-semibold mb-2">Ready to Simulate</h3>
+
+            <p className="text-muted max-w-md">
+              Configure your processes and select a scheduling algorithm, then
+              click "Generate" to see the Gantt chart and performance
+              metrics.
+            </p>
+          </div>
         )}
       </div>
     </div>

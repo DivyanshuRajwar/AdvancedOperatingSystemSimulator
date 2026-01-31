@@ -4,7 +4,8 @@ import { Play, Cpu } from "lucide-react";
 import GanttChart from "./GanttChart";
 import { motion, AnimatePresence } from "framer-motion";
 import "./execution.css";
-function ExecutionVisualizer({ readyQueue }) {
+import PerformanceMetrics from "./PerformanceMetrics";
+function ExecutionVisualizer({ readyQueue, totalProcesses }) {
   const [queue, setQueue] = useState([]);
   const [current, setCurrent] = useState(null);
   const [completed, setCompleted] = useState([]);
@@ -42,7 +43,6 @@ function ExecutionVisualizer({ readyQueue }) {
     setGantt([]);
     setCompleted([]);
     setCurrent(null);
-    // setTimeLeft(null);
     setCurrentTime(0);
     setIsRunning(false);
   }, [readyQueue]);
@@ -113,14 +113,17 @@ function ExecutionVisualizer({ readyQueue }) {
     return () => clearInterval(timer);
   }, [isRunning, queue.length, current]);
 
-  //gantt chart
+  // gantt chart
   useEffect(() => {
     if (!isRunning) return;
 
-    // 🛑 STOP adding blocks after everything is done
     if (queue.length === 0 && current === null) return;
+    // CPU changed → new block
 
     setGantt((prev) => {
+      if (cpuState.pid === "IDLE" && cpuState.start === currentTime) {
+        return prev;
+      }
       const last = prev[prev.length - 1];
 
       // first block
@@ -130,32 +133,57 @@ function ExecutionVisualizer({ readyQueue }) {
             pid: cpuState.pid,
             start: cpuState.start,
             end: currentTime,
+            // arrival: current.arrival,
+            // burst: current.burst,
           },
         ];
       }
 
-      // same CPU state → extend
+      // same process → extend end time only
       if (last.pid === cpuState.pid) {
         if (last.end === currentTime) return prev;
+
         return prev.map((g, i) =>
           i === prev.length - 1 ? { ...g, end: currentTime } : g,
         );
       }
-
-      // CPU changed → new block
       return [
         ...prev,
-        {
-          pid: cpuState.pid,
-          start: cpuState.start,
-          end: currentTime,
-        },
+        !current
+          ? {
+              pid: "IDLE",
+              start: cpuState.start,
+              end: currentTime,
+              arrival: null,
+              burst: null,
+            }
+          : {
+              pid: cpuState.pid,
+              start: cpuState.start,
+              end: currentTime,
+              arrival: current.arrival,
+              burst: current.burst,
+            },
       ];
     });
   }, [cpuState, currentTime, isRunning, queue.length, current]);
+
+  //performance check
+  const [Performance, setPerformance] = useState(null);
   useEffect(() => {
-    console.log(completed);
+    if (completed.length === totalProcesses) {
+      setIsRunning(false);
+    }
   }, [completed]);
+  useEffect(() => {
+    const allDone =
+      !isRunning && queue.length === 0 && completed.length === totalProcesses;
+
+    if (allDone) {
+      setPerformance(calculatePerformanceMetrics(gantt, completed));
+    }
+  }, [isRunning, completed]);
+
   return (
     <div className="mt-1 w-full ">
       <div className="flex items-center justify-between mb-3 px-1">
@@ -183,7 +211,7 @@ function ExecutionVisualizer({ readyQueue }) {
         </button>
       </div>
       {/* Main Layout */}
-      <div className="w-full  bg-accent border border-cyan-400/50 rounded-2xl px-6 py-5 flex items-center justify-between gap-10">
+      <div className="w-full glass-panel  bg-accent border border-cyan-400/50 rounded-2xl px-6 py-5 flex items-center justify-between gap-10">
         {/* Ready Queue + Current Time */}
         <div className="w-64 h-60  flex flex-col   gap-3 ">
           <p className="font-semibold text-cyan-300 mb-10 text-md align-left ">
@@ -249,6 +277,8 @@ function ExecutionVisualizer({ readyQueue }) {
       <GanttChart gantt={gantt} />
       {/* Output table  */}
       <OutputTable data={completed} />
+      {/* Performance */}
+      <PerformanceMetrics Performance={Performance} />
     </div>
   );
 }
@@ -364,7 +394,7 @@ const OutputTable = ({ data }) => {
     return pidColors[index % pidColors.length];
   };
   return (
-    <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-black/30">
+    <div className=" glass-panel mt-2 overflow-hidden rounded-xl border border-white/10 bg-black/30">
       <table className="w-full text-sm text-slate-200">
         <thead className="bg-white/3 text-slate-400">
           <tr>
@@ -412,3 +442,38 @@ const OutputTable = ({ data }) => {
     </div>
   );
 };
+function calculatePerformanceMetrics(gantt, completed) {
+  if (!gantt.length || !completed.length) return null;
+
+  // 🔹 Total time (makespan)
+  const totalTime = gantt[gantt.length - 1].end;
+
+  // 🔹 Idle time from Gantt
+  const idleTime = gantt
+    .filter((block) => block.pid === "IDLE")
+    .reduce((sum, block) => sum + (block.end - block.start), 0);
+
+  // 🔹 Average Waiting Time
+  const totalWT = completed.reduce((sum, p) => sum + p.WT, 0);
+  const avgWT = totalWT / completed.length;
+
+  // 🔹 Average Turnaround Time
+  const totalTAT = completed.reduce((sum, p) => sum + p.TAT, 0);
+  const avgTAT = totalTAT / completed.length;
+
+  // 🔹 CPU Utilization (%)
+  const cpuUtilization = ((totalTime - idleTime) / totalTime) * 100;
+
+  // 🔹 Throughput
+  const throughput = completed.length / totalTime;
+
+  return {
+    averageWaitingTime: Number(avgWT.toFixed(2)),
+    averageTurnaroundTime: Number(avgTAT.toFixed(2)),
+    cpuUtilization: Number(cpuUtilization.toFixed(2)),
+    throughput: Number(throughput.toFixed(3)),
+    totalIdleTime: idleTime,
+    totalTime,
+    processCount: completed.length,
+  };
+}
